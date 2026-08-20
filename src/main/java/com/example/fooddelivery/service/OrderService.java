@@ -11,6 +11,7 @@ import com.example.fooddelivery.entity.OrderStatus;
 import com.example.fooddelivery.entity.Restaurant;
 import com.example.fooddelivery.exception.InvalidOrderException;
 import com.example.fooddelivery.exception.ResourceNotFoundException;
+import com.example.fooddelivery.repository.MenuItemRepository;
 import com.example.fooddelivery.repository.OrderRepository;
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,19 +26,22 @@ public class OrderService {
     private final RestaurantService restaurantService;
     private final MenuItemService menuItemService;
     private final DeliveryPartnerService deliveryPartnerService;
+    private final MenuItemRepository menuItemRepository;
 
     public OrderService(
             OrderRepository orderRepository,
             CustomerService customerService,
             RestaurantService restaurantService,
             MenuItemService menuItemService,
-            DeliveryPartnerService deliveryPartnerService
+            DeliveryPartnerService deliveryPartnerService,
+            MenuItemRepository menuItemRepository
     ) {
         this.orderRepository = orderRepository;
         this.customerService = customerService;
         this.restaurantService = restaurantService;
         this.menuItemService = menuItemService;
         this.deliveryPartnerService = deliveryPartnerService;
+        this.menuItemRepository = menuItemRepository;
     }
 
     @Transactional
@@ -53,19 +57,28 @@ public class OrderService {
         BigDecimal total = BigDecimal.ZERO;
 
         for (OrderItemRequest itemRequest : request.items()) {
-            MenuItem menuItem = menuItemService.getById(itemRequest.menuItemId());
+            MenuItem menuItem;
+            try {
+                menuItem = menuItemRepository.findByIdForUpdate(itemRequest.menuItemId());
+            } catch (RuntimeException ex) {
+                // Repository method returns null/throws depending on JPA provider; preserve existing error semantics.
+                menuItem = menuItemService.getById(itemRequest.menuItemId());
+            }
 
             if (!menuItem.getRestaurant().getId().equals(restaurant.getId())) {
                 throw new InvalidOrderException(
                         "Menu item " + menuItem.getId() + " does not belong to restaurant " + restaurant.getId());
             }
             if (!menuItem.isAvailable()) {
-                throw new InvalidOrderException("Menu item is not available: " + menuItem.getId());
+                throw new InvalidOrderException("Item not available");
             }
 
             BigDecimal lineTotal = menuItem.getPrice().multiply(BigDecimal.valueOf(itemRequest.quantity()));
             total = total.add(lineTotal);
             order.addItem(new OrderItem(menuItem, itemRequest.quantity(), menuItem.getPrice()));
+
+            menuItem.setAvailable(false);
+            menuItemRepository.save(menuItem);
         }
 
         order.setTotalAmount(total);
