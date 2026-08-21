@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,8 +30,10 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<OrderResponse> placeOrder(@Valid @RequestBody PlaceOrderRequest request) {
-        OrderResponse response = OrderResponse.from(orderService.placeOrder(request));
+    public ResponseEntity<OrderResponse> placeOrder(
+            @Valid @RequestBody PlaceOrderRequest request,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey) {
+        OrderResponse response = OrderResponse.from(orderService.placeOrder(request, idempotencyKey));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -60,5 +63,10 @@ public class OrderController {
     @PatchMapping("/{id}/delivery-partner")
     public OrderResponse assignPartner(@PathVariable Long id, @Valid @RequestBody AssignPartnerRequest request) {
         return OrderResponse.from(orderService.assignPartner(id, request.deliveryPartnerId()));
+    }
+
+    @PatchMapping("/{id}/complete")
+    public OrderResponse complete(@PathVariable Long id) {
+        return OrderResponse.from(orderService.completeDelivery(id));
     }
 }
