@@ -61,4 +61,9 @@ public class OrderController {
     public OrderResponse assignPartner(@PathVariable Long id, @Valid @RequestBody AssignPartnerRequest request) {
         return OrderResponse.from(orderService.assignPartner(id, request.deliveryPartnerId()));
     }
+
+    @PatchMapping("/{id}/complete")
+    public OrderResponse complete(@PathVariable Long id) {
+        return OrderResponse.from(orderService.completeDelivery(id));
+    }
 }
