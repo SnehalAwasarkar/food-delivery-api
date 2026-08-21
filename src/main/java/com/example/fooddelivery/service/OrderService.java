@@ -104,7 +104,35 @@ public class OrderService {
     public Order assignPartner(Long orderId, Long partnerId) {
         Order order = getById(orderId);
         DeliveryPartner partner = deliveryPartnerService.getById(partnerId);
+
+        if (!partner.isAvailable()) {
+            throw new InvalidOrderException("Delivery partner is not available: " + partner.getId());
+        }
+
         order.setDeliveryPartner(partner);
+        partner.setAvailable(false);
+
+        // Persist both in the same transaction via the owning side (order) + partner (entity managed but ensure update happens).
+        deliveryPartnerService.save(partner);
+        return orderRepository.save(order);
+    }
+
+    @Transactional
+    public Order completeDelivery(Long orderId) {
+        Order order = getById(orderId);
+
+        if (order.getDeliveryPartner() == null) {
+            throw new InvalidOrderException("Order has no delivery partner: " + order.getId());
+        }
+        if (order.getStatus() == OrderStatus.DELIVERED) {
+            throw new InvalidOrderException("Order is already completed: " + order.getId());
+        }
+
+        order.setStatus(OrderStatus.DELIVERED);
+        DeliveryPartner partner = order.getDeliveryPartner();
+        partner.setAvailable(true);
+
+        deliveryPartnerService.save(partner);
         return orderRepository.save(order);
     }
 }

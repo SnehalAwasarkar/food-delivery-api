@@ -29,4 +29,8 @@ public class DeliveryPartnerService {
     public List<DeliveryPartner> listAll() {
         return deliveryPartnerRepository.findAll();
     }
+
+    public DeliveryPartner save(DeliveryPartner partner) {
+        return deliveryPartnerRepository.save(partner);
+    }
 }
