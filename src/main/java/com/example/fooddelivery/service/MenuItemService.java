@@ -21,7 +21,7 @@ public class MenuItemService {
 
     public MenuItem create(Long restaurantId, MenuItemRequest request) {
         Restaurant restaurant = restaurantService.getById(restaurantId);
-        MenuItem menuItem = new MenuItem(restaurant, request.name(), request.price());
+        MenuItem menuItem = new MenuItem(restaurant, request.name(), request.price(), request.stock());
         return menuItemRepository.save(menuItem);
     }
 

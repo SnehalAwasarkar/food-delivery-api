@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 
 public record MenuItemRequest(
         @NotBlank String name,
-        @NotNull @Positive BigDecimal price
+        @NotNull @Positive BigDecimal price,
+        @NotNull @Positive int stock
 ) {
 }

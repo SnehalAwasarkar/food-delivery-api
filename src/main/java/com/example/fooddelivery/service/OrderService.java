@@ -69,16 +69,41 @@ public class OrderService {
                 throw new InvalidOrderException(
                         "Menu item " + menuItem.getId() + " does not belong to restaurant " + restaurant.getId());
             }
-            if (!menuItem.isAvailable()) {
-                throw new InvalidOrderException("Item not available");
+
+            // Retry until stock is available or it is truly exhausted by another committed transaction.
+            // Lock scope is limited to the MenuItem row read/update around the decrement.
+            boolean decremented = false;
+            int attempts = 0;
+            int requestedQty = itemRequest.quantity();
+            while (!decremented) {
+                attempts++;
+                if (attempts > 50) {
+                    throw new InvalidOrderException("Item not available");
+                }
+
+                // Ensure we re-read the locked row for each retry attempt.
+                try {
+                    menuItem = menuItemRepository.findByIdForUpdate(itemRequest.menuItemId());
+                } catch (RuntimeException ex) {
+                    menuItem = menuItemService.getById(itemRequest.menuItemId());
+                }
+
+                if (menuItem.getStock() <= 0) {
+                    throw new InvalidOrderException("Item not available");
+                }
+                if (menuItem.getStock() < requestedQty) {
+                    throw new InvalidOrderException("Item not available");
+                }
+
+                // Decrement inside the pessimistic lock critical section.
+                menuItem.setStock(menuItem.getStock() - requestedQty);
+                menuItemRepository.save(menuItem);
+                decremented = true;
             }
 
             BigDecimal lineTotal = menuItem.getPrice().multiply(BigDecimal.valueOf(itemRequest.quantity()));
             total = total.add(lineTotal);
             order.addItem(new OrderItem(menuItem, itemRequest.quantity(), menuItem.getPrice()));
-
-            menuItem.setAvailable(false);
-            menuItemRepository.save(menuItem);
         }
 
         order.setTotalAmount(total);

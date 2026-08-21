@@ -74,10 +74,11 @@ public class OrderConcurrencyIntegrationTest {
                 .andReturn();
         Long restaurantId = objectMapper.readTree(restaurantResult.getResponse().getContentAsString()).get("id").asLong();
 
-        // Create one menu item (single-unit available)
+        // Create one menu item (single-unit stock)
         String menuItemPayload = objectMapper.writeValueAsString(new MenuItemRequest(
                 "Pasta",
-                new BigDecimal("12.50")
+                new BigDecimal("12.50"),
+                1
         ));
         var menuItemResult = mockMvc.perform(post("/api/restaurants/" + restaurantId + "/menu-items")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -104,7 +105,7 @@ public class OrderConcurrencyIntegrationTest {
                 "Addr2"
         ));
 
-        // Place two orders concurrently, both consuming the same single-unit item (quantity is irrelevant to flag; keep 1 per spec)
+        // Place two orders concurrently, both consuming the same single-unit item
         PlaceOrderRequest order1 = new PlaceOrderRequest(customer1Id, restaurantId,
                 List.of(new OrderItemRequest(menuItemId, 1)));
         PlaceOrderRequest order2 = new PlaceOrderRequest(customer2Id, restaurantId,
@@ -147,8 +148,7 @@ public class OrderConcurrencyIntegrationTest {
         assertThat(createdCount).isEqualTo(1);
         assertThat(conflictCount).isEqualTo(1);
 
-        // Verify conflict message is observable and exact
-        // (Re-submit one call that should now fail deterministically.)
+        // Verify message is observable and exact for the failing request.
         String body = objectMapper.writeValueAsString(order2);
         mockMvc.perform(post("/api/orders")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -158,6 +158,7 @@ public class OrderConcurrencyIntegrationTest {
 
         // Final state in DB must be sold out
         MenuItem after = menuItemRepository.findById(menuItemId).orElseThrow();
+        assertThat(after.getStock()).isEqualTo(0);
         assertThat(after.isAvailable()).isFalse();
     }
 

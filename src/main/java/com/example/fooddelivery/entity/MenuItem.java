@@ -28,16 +28,16 @@ public class MenuItem {
     private BigDecimal price;
 
     @Column(nullable = false)
-    private boolean available = true;
+    private int stock;
 
     public MenuItem() {
     }
 
-    public MenuItem(Restaurant restaurant, String name, BigDecimal price) {
+    public MenuItem(Restaurant restaurant, String name, BigDecimal price, int stock) {
         this.restaurant = restaurant;
         this.name = name;
         this.price = price;
-        this.available = true;
+        this.stock = stock;
     }
 
     public Long getId() {
@@ -72,11 +72,15 @@ public class MenuItem {
         this.price = price;
     }
 
-    public boolean isAvailable() {
-        return available;
+    public int getStock() {
+        return stock;
     }
 
-    public void setAvailable(boolean available) {
-        this.available = available;
+    public void setStock(int stock) {
+        this.stock = stock;
+    }
+
+    public boolean isAvailable() {
+        return stock > 0;
     }
 }

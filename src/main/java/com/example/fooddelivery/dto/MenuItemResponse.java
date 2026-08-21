@@ -16,7 +16,7 @@ public record MenuItemResponse(
                 menuItem.getRestaurant().getId(),
                 menuItem.getName(),
                 menuItem.getPrice(),
-                menuItem.isAvailable()
+                menuItem.getStock() > 0
         );
     }
 }
